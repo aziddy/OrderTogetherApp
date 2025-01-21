@@ -24,6 +24,8 @@ interface Order {
   timestamp: string;
 }
 
+const BACKEND_WS_URL = process.env.REACT_APP_BACKEND_WS_URL || 'ws://localhost:5001';
+
 const Session = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [ws, setWs] = useState<WebSocket | null>(null);
@@ -58,7 +60,7 @@ const Session = () => {
       if (isErrorShown) return;
       
       setIsConnecting(true);
-      websocket = new WebSocket(`ws://localhost:5001`);
+      websocket = new WebSocket(BACKEND_WS_URL);
 
       websocket.onopen = () => {
         console.log('WebSocket connected');
