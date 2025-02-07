@@ -43,7 +43,7 @@ const Session = () => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [newItem, setNewItem] = useState('');
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<string>('1');
   const [notes, setNotes] = useState('');
   const [isConnecting, setIsConnecting] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -161,19 +161,29 @@ const Session = () => {
       return;
     }
 
+    const parsedQuantity = parseInt(quantity);
+    if (!parsedQuantity || parsedQuantity < 1) {
+      toast({
+        title: 'Invalid quantity',
+        description: 'Please enter a quantity greater than 0',
+        status: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         type: 'add_order',
         order: {
           item: newItem.trim(),
-          quantity,
+          quantity: parsedQuantity,
           notes: notes.trim(),
         },
       }));
 
       setNewItem('');
-      setQuantity(1);
-      setNotes('');
+      setQuantity('1');
     } else {
       toast({
         title: 'Connection error',
@@ -283,7 +293,7 @@ const Session = () => {
                 type="number"
                 placeholder="Quantity"
                 value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                onChange={(e) => setQuantity(e.target.value)}
                 min={1}
                 isDisabled={isConnecting || sessionExpired}
               />
