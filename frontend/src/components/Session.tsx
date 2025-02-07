@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Box,
   VStack,
@@ -17,6 +18,13 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 
@@ -39,6 +47,7 @@ const Session = () => {
   const [notes, setNotes] = useState('');
   const [isConnecting, setIsConnecting] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -223,15 +232,43 @@ const Session = () => {
           <Text fontSize="lg" color="gray.600" mb={2}>
             Session Code: {sessionId}
           </Text>
-          <Button size="sm" onClick={copySessionLink}>
-            Copy Session Link
-          </Button>
+          <HStack spacing={2} justify="center">
+            <Button size="sm" onClick={copySessionLink}>
+              Copy Session Link
+            </Button>
+            <Button size="sm" onClick={onOpen} colorScheme="teal">
+              Show QR Code
+            </Button>
+          </HStack>
           {isConnecting && !sessionExpired && (
             <Text color="orange.500" mt={2}>
               Connecting to session...
             </Text>
           )}
         </Box>
+
+        <Modal isOpen={isOpen} onClose={onClose} isCentered>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader textAlign="center">Scan to Join Session</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody pb={6}>
+              <VStack spacing={4}>
+                <Box p={4} bg="white" borderRadius="lg">
+                  <QRCodeSVG
+                    value={window.location.href}
+                    size={250}
+                    level="H"
+                    includeMargin
+                  />
+                </Box>
+                <Text fontSize="sm" color="gray.600" textAlign="center">
+                  Scan this QR code to join the session on another device
+                </Text>
+              </VStack>
+            </ModalBody>
+          </ModalContent>
+        </Modal>
 
         <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
           <VStack spacing={4}>

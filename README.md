@@ -48,7 +48,7 @@ mkcert -key-file certs/localhost-key.pem -cert-file certs/localhost.pem 'localho
 
 ### Start Up Docker Containers
 ```bash
-docker compose -f dev-docker-compose.yml up
+docker compose -f dev-docker-compose.yml up --build
 ```
 
 <br>

@@ -6,7 +6,7 @@
     "WORKDIR /app",
 
     "# Copy package files",
-    "COPY backend/package*.json ./",
+    "COPY ./backend/package*.json ./",
 
     "# Install dependencies",
     "RUN npm ci",
