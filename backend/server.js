@@ -15,6 +15,32 @@ app.use(express.json());
 // Store active sessions
 const sessions = new Map();
 
+// Session timeout in milliseconds (2 hours)
+const SESSION_TIMEOUT = 2 * 60 * 60 * 1000;
+
+// Cleanup inactive sessions
+function cleanupSessions() {
+    const now = Date.now();
+    for (const [sessionId, session] of sessions.entries()) {
+        if (now - session.createdAt > SESSION_TIMEOUT) {
+            // Notify all clients that the session is expired
+            session.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                        type: 'session_expired',
+                        message: 'Session has expired'
+                    }));
+                    client.close();
+                }
+            });
+            sessions.delete(sessionId);
+        }
+    }
+}
+
+// Run cleanup every 5 minutes
+setInterval(cleanupSessions, 5 * 60 * 1000);
+
 // Generate a human-readable session code
 function generateSessionCode() {
     return shortid.generate().slice(0, 6).toUpperCase();
@@ -33,7 +59,8 @@ wss.on('connection', (ws) => {
                 if (!sessions.has(sessionId)) {
                     sessions.set(sessionId, {
                         orders: [],
-                        clients: new Set()
+                        clients: new Set(),
+                        createdAt: Date.now()
                     });
                 }
                 sessions.get(sessionId).clients.add(ws);
@@ -103,7 +130,8 @@ app.post('/api/sessions', (req, res) => {
     const sessionId = generateSessionCode();
     sessions.set(sessionId, {
         orders: [],
-        clients: new Set()
+        clients: new Set(),
+        createdAt: Date.now()
     });
     res.json({ sessionId });
 });
@@ -111,10 +139,18 @@ app.post('/api/sessions', (req, res) => {
 // Get session info
 app.get('/api/sessions/:sessionId', (req, res) => {
     const { sessionId } = req.params;
-    if (sessions.has(sessionId)) {
-        res.json({ exists: true });
+    const session = sessions.get(sessionId);
+    
+    if (session) {
+        // Check if session has expired
+        if (Date.now() - session.createdAt > SESSION_TIMEOUT) {
+            sessions.delete(sessionId);
+            res.status(404).json({ exists: false, reason: 'expired' });
+        } else {
+            res.json({ exists: true });
+        }
     } else {
-        res.status(404).json({ exists: false });
+        res.status(404).json({ exists: false, reason: 'not_found' });
     }
 });
 
