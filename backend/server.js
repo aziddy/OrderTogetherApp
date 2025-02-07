@@ -7,7 +7,10 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ 
+    server,
+    path: '/ws'
+    });
 
 app.use(cors());
 app.use(express.json());
@@ -23,6 +26,10 @@ function cleanupSessions() {
     const now = Date.now();
     for (const [sessionId, session] of sessions.entries()) {
         if (now - session.createdAt > SESSION_TIMEOUT) {
+            // Notify all clients that the session is expired
+            console.log(`Session ${sessionId} has expired`);
+            console.log(Date.now());
+            console.log(sessions.createdAt);
             // Notify all clients that the session is expired
             session.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN) {
@@ -117,10 +124,12 @@ wss.on('connection', (ws) => {
             const session = sessions.get(sessionId);
             session.clients.delete(ws);
             
+            
+            // INTERMITTENT CONNECTION DROPs ARE CAUSING SESSIONs TO CLOSE
             // Clean up empty sessions
-            if (session.clients.size === 0) {
-                sessions.delete(sessionId);
-            }
+            // if (session.clients.size === 0) {
+            //     sessions.delete(sessionId);
+            // }
         }
     });
 });

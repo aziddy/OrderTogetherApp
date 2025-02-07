@@ -28,7 +28,7 @@ interface Order {
   timestamp: string;
 }
 
-const BACKEND_WS_URL = process.env.BACKEND_WS_URL || 'ws://localhost:5001';
+const BACKEND_WS_URL = process.env.REACT_APP_BACKEND_WS_URL || 'ws://localhost/not_set_correctly';
 
 const Session = () => {
   const { sessionId } = useParams<{ sessionId: string }>();

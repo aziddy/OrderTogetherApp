@@ -17,7 +17,9 @@ A real-time collaborative restaurant ordering web app that helps groups coordina
 - Real-time Communication: WebSocket
 - UI Framework: Chakra UI
 
-## Setup
+<br>
+
+## Run Locally On Host
 
 ### Backend
 ```bash
@@ -33,12 +35,28 @@ npm install
 npm start
 ```
 
-The app will be available at http://localhost:3000, and the backend will run on http://localhost:5000.
+The app will be available at http://localhost:3000, and the backend will run on http://localhost:5001.
 
-## Environment Variables
+<br>
 
-Create a `.env` file in the backend directory with:
+## Run Locally with Docker Compose and HTTPS / WSS
 
+### Generate Self-Signed SSL Certificates
+```bash
+mkcert -key-file certs/localhost-key.pem -cert-file certs/localhost.pem 'localhost'
 ```
-PORT=5000
+
+### Start Up Docker Containers
+```bash
+docker compose -f dev-docker-compose.yml up
 ```
+
+<br>
+
+## Accessing the app on Local Subnet 
+### Get Mac Ip
+```bash
+ipconfig getifaddr en0
+```
+
+
