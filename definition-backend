@@ -1,4 +1,5 @@
 {
   "schemaVersion": 2,
-  "dockerfilePath": "./backend/Dockerfile"
+  "dockerfilePath": "./backend/Dockerfile",
+  "contextRoot": "./backend"
 }
