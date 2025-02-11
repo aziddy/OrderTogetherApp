@@ -25,6 +25,7 @@ import {
   ModalBody,
   ModalCloseButton,
   useDisclosure,
+  Badge,
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 
@@ -396,10 +397,19 @@ const Session = () => {
                 alignItems="center"
               >
                 <VStack align="start" spacing={1}>
-                  <Text fontWeight="bold">
-                    {order.quantity}x {order.item}
-                    {order.price !== undefined && ` - $${order.price.toFixed(2)}`}
-                  </Text>
+                  <HStack spacing={2}>
+                    <Badge colorScheme="orange" fontSize="0.9em" px={2} borderRadius="md">
+                      {order.quantity}x
+                    </Badge>
+                    <Badge colorScheme="blue" fontSize="0.9em" px={2} borderRadius="md">
+                      {order.item}
+                    </Badge>
+                    {order.price !== undefined && (
+                      <Badge colorScheme="green" fontSize="0.9em" px={2} borderRadius="md">
+                        ${order.price.toFixed(2)}
+                      </Badge>
+                    )}
+                  </HStack>
                   {order.notes && (
                     <Text fontSize="sm" color="gray.600">
                       Note: {order.notes}
