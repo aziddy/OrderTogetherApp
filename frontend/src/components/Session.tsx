@@ -26,6 +26,7 @@ import {
   ModalCloseButton,
   useDisclosure,
   Badge,
+  Grid,
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 
@@ -433,18 +434,38 @@ const Session = () => {
               </Text>
             )}
           </List>
-          {orders.length > 0 && orders.some(order => order.price !== undefined) && (
-            <Box mt={4} pt={4} borderTop="1px" borderColor="gray.200">
-              <HStack justify="flex-end" spacing={2}>
-                <Text fontWeight="bold">Total:</Text>
-                <Text fontSize="lg" color="green.600" fontWeight="bold">
-                  ${orders
-                    .reduce((total, order) => total + (order.price || 0) * order.quantity, 0)
-                    .toFixed(2)}
-                </Text>
-              </HStack>
-            </Box>
-          )}
+          <Box mt={4} pt={4} borderTop="1px" borderColor="gray.200">
+            <HStack justify="flex-end" spacing={2}>
+              <Badge colorScheme="green" fontSize="1.8em" px={4} py={1} borderRadius="md" fontWeight="bold">
+                SubTotal: ${orders
+                  .filter(order => order.price !== undefined)
+                  .reduce((sum, order) => sum + (order.price || 0) * order.quantity, 0)
+                  .toFixed(2)}
+              </Badge>
+            </HStack>
+            <Grid mt={2} templateColumns="repeat(4, 1fr)" gap={4}>
+              {[13, 15, 18, 20].map(tipPercent => {
+                const subtotal = orders
+                  .filter(order => order.price !== undefined)
+                  .reduce((sum, order) => sum + (order.price || 0) * order.quantity, 0);
+                const tipAmount = subtotal * (tipPercent / 100);
+                const total = subtotal + tipAmount;
+                
+                return (
+                  <Badge key={tipPercent} colorScheme="blue" p={3} borderRadius="md" width="100%">
+                    <VStack spacing={1} align="center">
+                      <Text fontSize="1.5em" fontWeight="bold">{tipPercent}%</Text>
+                      <Text fontSize="1.2em">Tip:</Text>
+                      <Text fontSize="1.1em" fontStyle="italic">${tipAmount.toFixed(2)}</Text>
+                      <Box w="100%" h="1px" bg="blue.200" my={1} />
+                      <Text fontSize="1.5em">Total:</Text>
+                      <Text fontSize="1.7em">${total.toFixed(2)}</Text>
+                    </VStack>
+                  </Badge>
+                );
+              })}
+            </Grid>
+          </Box>
         </Box>
       </VStack>
     </Container>
