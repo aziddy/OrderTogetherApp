@@ -82,6 +82,21 @@ wss.on('connection', (ws) => {
             case 'add_order':
                 if (sessionId && sessions.has(sessionId)) {
                     const session = sessions.get(sessionId);
+                    
+                    // Validate price if provided
+                    if (data.order.price !== undefined) {
+                        const price = parseFloat(data.order.price);
+                        if (isNaN(price) || price < 0 || price > 50000) {
+                            ws.send(JSON.stringify({
+                                type: 'error',
+                                message: 'Invalid price. Must be between 0 and 50,000'
+                            }));
+                            return;
+                        }
+                        // Round to 2 decimal places
+                        data.order.price = Math.round(price * 100) / 100;
+                    }
+
                     const order = {
                         id: shortid.generate(),
                         ...data.order,

@@ -38,6 +38,7 @@ interface Order {
   id: string;
   item: string;
   quantity: number;
+  price?: number;
   notes: string;
   timestamp: string;
 }
@@ -50,6 +51,7 @@ const Session = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [newItem, setNewItem] = useState('');
   const [quantity, setQuantity] = useState<string>('1');
+  const [price, setPrice] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [isConnecting, setIsConnecting] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -91,6 +93,15 @@ const Session = () => {
               isClosable: true,
             });
             setTimeout(() => navigate('/'), 5000);
+            break;
+          case 'error':
+            toast({
+              title: 'Error',
+              description: data.message,
+              status: 'error',
+              duration: 3000,
+              isClosable: true,
+            });
             break;
         }
       } catch (error) {
@@ -196,18 +207,38 @@ const Session = () => {
       return;
     }
 
+    // Validate price if provided
+    let parsedPrice: number | undefined = undefined;
+    if (price.trim()) {
+      parsedPrice = parseFloat(price);
+      if (isNaN(parsedPrice) || parsedPrice < 0 || parsedPrice > 50000) {
+        toast({
+          title: 'Invalid price',
+          description: 'Price must be between 0 and 50,000',
+          status: 'warning',
+          duration: 3000,
+        });
+        return;
+      }
+      // Round to 2 decimal places
+      parsedPrice = Math.round(parsedPrice * 100) / 100;
+    }
+
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         type: 'add_order',
         order: {
           item: newItem.trim(),
           quantity: parsedQuantity,
+          price: parsedPrice,
           notes: notes.trim(),
         },
       }));
 
       setNewItem('');
       setQuantity('1');
+      setPrice('');
+      setNotes('');
     } else {
       toast({
         title: 'Connection error',
@@ -322,12 +353,22 @@ const Session = () => {
                 isDisabled={isConnecting || sessionExpired}
               />
               <Input
-                placeholder="Notes (optional)"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                type="number"
+                placeholder="Price (optional)"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                min={0}
+                max={50000}
+                step={0.01}
                 isDisabled={isConnecting || sessionExpired}
               />
             </HStack>
+            <Input
+              placeholder="Notes (optional)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              isDisabled={isConnecting || sessionExpired}
+            />
             <Button 
               colorScheme="teal" 
               width="full" 
@@ -357,6 +398,7 @@ const Session = () => {
                 <VStack align="start" spacing={1}>
                   <Text fontWeight="bold">
                     {order.quantity}x {order.item}
+                    {order.price !== undefined && ` - $${order.price.toFixed(2)}`}
                   </Text>
                   {order.notes && (
                     <Text fontSize="sm" color="gray.600">
