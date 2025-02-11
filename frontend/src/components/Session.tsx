@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -28,6 +28,12 @@ import {
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 
+// Add custom WebSocket interface
+interface ExtendedWebSocket extends WebSocket {
+  attempts?: number;
+  reconnectTimeout?: NodeJS.Timeout;
+}
+
 interface Order {
   id: string;
   item: string;
@@ -40,7 +46,7 @@ const BACKEND_WS_URL = process.env.REACT_APP_BACKEND_WS_URL || 'ws://localhost/n
 
 const Session = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [ws, setWs] = useState<ExtendedWebSocket | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [newItem, setNewItem] = useState('');
   const [quantity, setQuantity] = useState<string>('1');
@@ -50,106 +56,124 @@ const Session = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
   const toast = useToast();
+  const [isInBackground, setIsInBackground] = useState(false);
 
-  useEffect(() => {
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 3;
-    let websocket: WebSocket | null = null;
-    let isErrorShown = false;
+  const connectWebSocket = useCallback(() => {
+    if (sessionExpired) return null;
+    
+    setIsConnecting(true);
+    const websocket = new WebSocket(BACKEND_WS_URL) as ExtendedWebSocket;
 
-    const showError = (title: string, description: string) => {
-      if (!isErrorShown) {
-        isErrorShown = true;
-        toast({
-          title,
-          description,
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
+    websocket.onopen = () => {
+      console.log('WebSocket connected');
+      setIsConnecting(false);
+      
+      websocket.send(JSON.stringify({
+        type: 'join',
+        sessionId,
+      }));
+    };
+
+    websocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+          case 'orders':
+            setOrders(data.orders);
+            break;
+          case 'session_expired':
+            setSessionExpired(true);
+            toast({
+              title: 'Session Expired',
+              description: 'This session has expired. You will be redirected to the home page.',
+              status: 'warning',
+              duration: 5000,
+              isClosable: true,
+            });
+            setTimeout(() => navigate('/'), 5000);
+            break;
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
       }
     };
 
-    const connectWebSocket = () => {
-      if (isErrorShown) return;
-      
+    websocket.onclose = (event) => {
+      console.log('WebSocket closed:', event.code, event.reason);
       setIsConnecting(true);
-      websocket = new WebSocket(BACKEND_WS_URL);
-
-      websocket.onopen = () => {
-        console.log('WebSocket connected');
-        setIsConnecting(false);
-        isErrorShown = false;
-        reconnectAttempts = 0;
-        
-        websocket?.send(JSON.stringify({
-          type: 'join',
-          sessionId,
-        }));
-      };
-
-      websocket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          switch (data.type) {
-            case 'orders':
-              setOrders(data.orders);
-              break;
-            case 'session_expired':
-              setSessionExpired(true);
-              toast({
-                title: 'Session Expired',
-                description: 'This session has expired. You will be redirected to the home page.',
-                status: 'warning',
-                duration: 5000,
-                isClosable: true,
-              });
-              setTimeout(() => navigate('/'), 5000);
-              break;
+      
+      if (!isInBackground) {
+        const backoffDelay = Math.min(1000 * Math.pow(2, websocket.attempts || 0), 30000);
+        websocket.reconnectTimeout = setTimeout(() => {
+          if (!isInBackground) {
+            websocket.attempts = (websocket.attempts || 0) + 1;
+            setWs(null);
+            connectWebSocket();
           }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      websocket.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
-        setIsConnecting(true);
-        
-        // Only attempt reconnect if it wasn't closed due to an error or session expiration
-        if (!isErrorShown && !sessionExpired && reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          console.log(`Reconnecting... Attempt ${reconnectAttempts}`);
-          setTimeout(connectWebSocket, 1000 * reconnectAttempts);
-        } else if (!isErrorShown && !sessionExpired) {
-          showError(
-            'Connection lost',
-            'Unable to reconnect to the session'
-          );
-          navigate('/');
-        }
-      };
-
-      websocket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        showError(
-          'Connection error',
-          'Error connecting to the session'
-        );
-      };
-
-      setWs(websocket);
+        }, backoffDelay);
+      }
     };
 
-    connectWebSocket();
+    websocket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    websocket.attempts = 0;
+    setWs(websocket);
+    return websocket;
+  }, [sessionId, navigate, toast, sessionExpired, isInBackground]);
+
+  useEffect(() => {
+    let websocket: ExtendedWebSocket | null = null;
+    let visibilityChangeTimeout: NodeJS.Timeout;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsInBackground(true);
+        visibilityChangeTimeout = setTimeout(() => {
+          if (websocket?.readyState === WebSocket.OPEN) {
+            console.log('Closing WebSocket due to background state');
+            websocket.close();
+          }
+        }, 5000);
+      } else {
+        setIsInBackground(false);
+        clearTimeout(visibilityChangeTimeout);
+        
+        if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+          websocket = connectWebSocket();
+        }
+      }
+    };
+
+    const handleAppStateChange = () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(() => {
+          if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+            websocket = connectWebSocket();
+          }
+        }, 1000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleAppStateChange);
+    window.addEventListener('pageshow', handleAppStateChange);
+
+    websocket = connectWebSocket();
 
     return () => {
-      isErrorShown = true; // Prevent any new error messages during cleanup
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleAppStateChange);
+      window.removeEventListener('pageshow', handleAppStateChange);
+      
+      clearTimeout(visibilityChangeTimeout);
       if (websocket) {
+        clearTimeout(websocket.reconnectTimeout);
         websocket.close();
       }
     };
-  }, [sessionId, navigate, toast, sessionExpired]);
+  }, [connectWebSocket]);
 
   const addOrder = () => {
     if (!newItem.trim()) {
