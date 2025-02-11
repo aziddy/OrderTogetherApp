@@ -41,14 +41,20 @@ The app will be available at http://localhost:3000, and the backend will run on 
 
 ## Run Locally with Docker Compose and HTTPS / WSS
 
-### Generate Self-Signed SSL Certificates (from project root)
+### 1) Generate Self-Signed SSL Certificates (from project root)
 ```bash
 mkcert -key-file certs/localhost-key.pem -cert-file certs/localhost.pem 'localhost'
 ```
 
-### Start Up Docker Containers (from project root)
+### 2) Start Up Docker Containers (from project root)(must have docker installed)
+Frontend will be available at https://localhost:8150
 ```bash
-docker compose -f dev-docker-compose.yml up --build
+docker compose -f dev-docker-compose.yml up --build # Rebuilds Images if you make changes to the containers
+```
+
+### Tip: Stop Docker Containers
+```bash
+docker compose -f dev-docker-compose.yml down # Stops/Removes Containers
 ```
 
 <br>
