@@ -18,8 +18,8 @@ app.use(express.json());
 // Store active sessions
 const sessions = new Map();
 
-// Session timeout in milliseconds (2 hours)
-const SESSION_TIMEOUT = 2 * 60 * 60 * 1000;
+// Session timeout in milliseconds (4 hours)
+const SESSION_TIMEOUT = 4 * 60 * 60 * 1000;
 
 // Cleanup inactive sessions
 function cleanupSessions() {
@@ -45,8 +45,8 @@ function cleanupSessions() {
     }
 }
 
-// Run cleanup every 5 minutes
-setInterval(cleanupSessions, 5 * 60 * 1000);
+// Run cleanup every 10 minutes
+setInterval(cleanupSessions, 10 * 60 * 1000);
 
 // Generate a human-readable session code
 function generateSessionCode() {
