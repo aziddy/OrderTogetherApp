@@ -20,6 +20,9 @@ const sessions = new Map();
 
 // Session timeout in milliseconds (4 hours)
 const SESSION_TIMEOUT = 4 * 60 * 60 * 1000;
+const MAX_NOTES_LENGTH = 30;
+const MAX_ITEM_NAME_LENGTH = 25;
+const MAX_ITEM_PRICE = 50000;
 
 // Cleanup inactive sessions
 function cleanupSessions() {
@@ -83,13 +86,31 @@ wss.on('connection', (ws) => {
                 if (sessionId && sessions.has(sessionId)) {
                     const session = sessions.get(sessionId);
                     
+                    // Validate item name length
+                    if (!data.order.item || data.order.item.trim().length > MAX_ITEM_NAME_LENGTH) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: `Item name must be ${MAX_ITEM_NAME_LENGTH} characters or less`
+                        }));
+                        return;
+                    }
+
+                    // Validate notes length
+                    if (data.order.notes && data.order.notes.trim().length > MAX_NOTES_LENGTH) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: `Notes must be ${MAX_NOTES_LENGTH} characters or less`
+                        }));
+                        return;
+                    }
+
                     // Validate price if provided
                     if (data.order.price !== undefined) {
                         const price = parseFloat(data.order.price);
                         if (isNaN(price) || price < 0 || price > 50000) {
                             ws.send(JSON.stringify({
                                 type: 'error',
-                                message: 'Invalid price. Must be between 0 and 50,000'
+                                message: `Invalid price. Must be between 0 and ${MAX_ITEM_PRICE}`
                             }));
                             return;
                         }

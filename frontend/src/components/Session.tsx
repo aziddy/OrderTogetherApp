@@ -27,6 +27,7 @@ import {
   useDisclosure,
   Badge,
   Grid,
+  Flex,
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 
@@ -209,6 +210,17 @@ const Session = () => {
       return;
     }
 
+    // Validate note length
+    // if (notes.trim().length > 30) {
+    //   toast({
+    //     title: 'Note too long',
+    //     description: 'Please keep notes under 30 characters',
+    //     status: 'warning',
+    //     duration: 3000,
+    //   });
+    //   return;
+    // }
+
     // Validate price if provided
     let parsedPrice: number | undefined = undefined;
     if (price.trim()) {
@@ -278,7 +290,10 @@ const Session = () => {
   };
 
   return (
-    <Container maxW="container.md">
+    <Container 
+      maxW={["100%", "100%", "container.md"]} 
+      px={[2, 2, 4]}
+    >
       <VStack spacing={6} align="stretch">
         {sessionExpired && (
           <Alert status="warning">
@@ -368,7 +383,12 @@ const Session = () => {
             <Input
               placeholder="Notes (optional)"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => {
+                const trimmedValue = e.target.value.trim();
+                if (trimmedValue.length <= 100) {
+                  setNotes(e.target.value);
+                }
+              }}
               isDisabled={isConnecting || sessionExpired}
             />
             <Button 
@@ -395,24 +415,31 @@ const Session = () => {
                 borderRadius="md"
                 display="flex"
                 justifyContent="space-between"
-                alignItems="center"
+                alignItems="flex-start"
               >
-                <VStack align="start" spacing={1}>
-                  <HStack spacing={2}>
-                    <Badge colorScheme="orange" fontSize="0.9em" px={2} borderRadius="md">
+                <VStack align="start" spacing={1} flex="1" minWidth="0">
+                  <Flex gap={2} flexWrap="wrap" width="100%">
+                    <Badge colorScheme="orange" fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
                       {order.quantity}x
                     </Badge>
-                    <Badge colorScheme="blue" fontSize="0.9em" px={2} borderRadius="md">
+                    <Badge colorScheme="blue" fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
                       {order.item}
                     </Badge>
                     {order.price !== undefined && (
-                      <Badge colorScheme="green" fontSize="0.9em" px={2} borderRadius="md">
+                      <Badge colorScheme="green" fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
                         ${order.price.toFixed(2)}
                       </Badge>
                     )}
-                  </HStack>
+                  </Flex>
                   {order.notes && (
-                    <Text fontSize="sm" color="gray.600">
+                    <Text 
+                      fontSize="sm" 
+                      color="gray.600"
+                      width="100%"
+                      whiteSpace="pre-wrap"
+                      wordBreak="break-word"
+                      overflowWrap="break-word"
+                    >
                       Note: {order.notes}
                     </Text>
                   )}
@@ -425,6 +452,8 @@ const Session = () => {
                   variant="ghost"
                   onClick={() => removeOrder(order.id)}
                   isDisabled={isConnecting || sessionExpired}
+                  ml={2}
+                  flexShrink={0}
                 />
               </ListItem>
             ))}
@@ -435,15 +464,28 @@ const Session = () => {
             )}
           </List>
           <Box mt={4} pt={4} borderTop="1px" borderColor="gray.200">
-            <HStack justify="flex-end" spacing={2}>
-              <Badge colorScheme="green" fontSize="1.8em" px={4} py={1} borderRadius="md" fontWeight="bold">
+            <HStack justify={["center", "center", "flex-end"]} spacing={2} width="100%">
+              <Badge 
+                colorScheme="green" 
+                fontSize={["1.3em", "1.5em", "1.8em"]}
+                px={4} 
+                py={1} 
+                borderRadius="md" 
+                fontWeight="bold"
+                width={["100%", "100%", "auto"]}
+                textAlign="center"
+              >
                 SubTotal: ${orders
                   .filter(order => order.price !== undefined)
                   .reduce((sum, order) => sum + (order.price || 0) * order.quantity, 0)
                   .toFixed(2)}
               </Badge>
             </HStack>
-            <Grid mt={2} templateColumns="repeat(4, 1fr)" gap={4}>
+            <Grid 
+              mt={2} 
+              templateColumns={["repeat(2, 1fr)", "repeat(2, 1fr)", "repeat(4, 1fr)"]} 
+              gap={4}
+            >
               {[13, 15, 18, 20].map(tipPercent => {
                 const subtotal = orders
                   .filter(order => order.price !== undefined)
@@ -454,12 +496,12 @@ const Session = () => {
                 return (
                   <Badge key={tipPercent} colorScheme="blue" p={3} borderRadius="md" width="100%">
                     <VStack spacing={1} align="center">
-                      <Text fontSize="1.5em" fontWeight="bold">{tipPercent}%</Text>
-                      <Text fontSize="1.2em">Tip:</Text>
-                      <Text fontSize="1.1em" fontStyle="italic">${tipAmount.toFixed(2)}</Text>
+                      <Text fontSize={["1.2em", "1.3em", "1.5em"]} fontWeight="bold">{tipPercent}%</Text>
+                      <Text fontSize={["1em", "1.1em", "1.2em"]}>Tip:</Text>
+                      <Text fontSize={["0.9em", "1em", "1.1em"]} fontStyle="italic">${tipAmount.toFixed(2)}</Text>
                       <Box w="100%" h="1px" bg="blue.200" my={1} />
-                      <Text fontSize="1.5em">Total:</Text>
-                      <Text fontSize="1.7em">${total.toFixed(2)}</Text>
+                      <Text fontSize={["1.2em", "1.3em", "1.5em"]}>Total:</Text>
+                      <Text fontSize={["1.4em", "1.5em", "1.7em"]}>${total.toFixed(2)}</Text>
                     </VStack>
                   </Badge>
                 );
