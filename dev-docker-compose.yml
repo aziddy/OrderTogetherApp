@@ -13,6 +13,11 @@ services:
     depends_on:
       - frontend
       - backend
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "443"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
   frontend:
     build:
@@ -26,6 +31,11 @@ services:
       - "3000"
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "3000"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
   backend:
     build:
@@ -35,4 +45,26 @@ services:
       - "5001"
     environment:
       - PORT=5001
-      - NODE_ENV=local 
+      - NODE_ENV=local
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "5001"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  startup_message:
+    image: alpine
+    depends_on:
+      nginx:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    command: |
+      sh -c '
+        echo "\n\n🚀 All services are up and running!"
+        echo "Frontend is available at https://localhost:8150"
+        echo "Backend API is available at https://localhost:8150/api"
+        echo "WebSocket is available at wss://localhost:8150/ws"
+      ' 
