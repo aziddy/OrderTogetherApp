@@ -41,22 +41,16 @@ The app will be available at http://localhost:3000, and the backend will run on 
 
 ## Run Locally with Docker Compose and HTTPS / WSS
 
-### Generate Self-Signed SSL Certificates
+### Generate Self-Signed SSL Certificates (from project root)
 ```bash
 mkcert -key-file certs/localhost-key.pem -cert-file certs/localhost.pem 'localhost'
 ```
 
-### Start Up Docker Containers
+### Start Up Docker Containers (from project root)
 ```bash
 docker compose -f dev-docker-compose.yml up --build
 ```
 
 <br>
-
-## Accessing the app on Local Subnet 
-### Get Mac Ip
-```bash
-ipconfig getifaddr en0
-```
 
 
