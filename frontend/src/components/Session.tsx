@@ -433,6 +433,18 @@ const Session = () => {
               </Text>
             )}
           </List>
+          {orders.length > 0 && orders.some(order => order.price !== undefined) && (
+            <Box mt={4} pt={4} borderTop="1px" borderColor="gray.200">
+              <HStack justify="flex-end" spacing={2}>
+                <Text fontWeight="bold">Total:</Text>
+                <Text fontSize="lg" color="green.600" fontWeight="bold">
+                  ${orders
+                    .reduce((total, order) => total + (order.price || 0) * order.quantity, 0)
+                    .toFixed(2)}
+                </Text>
+              </HStack>
+            </Box>
+          )}
         </Box>
       </VStack>
     </Container>
