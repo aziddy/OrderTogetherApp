@@ -30,6 +30,7 @@ import {
   Flex,
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
+import Logo from './Logo';
 
 // Add custom WebSocket interface
 interface ExtendedWebSocket extends WebSocket {
@@ -308,6 +309,9 @@ const Session = () => {
         )}
 
         <Box textAlign="center">
+          <Box mb={4} display="flex" justifyContent="center">
+            <Logo size={["30px", "35px", "40px"]} />
+          </Box>
           <Heading as="h1" size="xl" mb={2}>
             Order Session
           </Heading>
