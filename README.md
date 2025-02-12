@@ -2,6 +2,10 @@
 
 A real-time collaborative restaurant ordering web app that helps groups coordinate their orders seamlessly.
 
+<div align="center">
+  <img src="./media/Demo-12Feb2025.gif" alt="Demo" width="500">
+</div>
+
 ## Features
 
 - Create and join dining sessions with unique, human-readable codes
@@ -41,7 +45,7 @@ The app will be available at http://localhost:3000, and the backend will run on 
 
 ## Run Locally with Docker Compose and HTTPS / WSS
 
-### 1) Generate Self-Signed SSL Certificates (from project root)
+### 1) Generate Self-Signed SSL Certificates (from project root) [must have mkcert installed]
 ```bash
 mkcert -key-file certs/localhost-key.pem -cert-file certs/localhost.pem 'localhost'
 ```
