@@ -69,6 +69,7 @@ const Session = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [isInBackground, setIsInBackground] = useState(false);
+  const [taxUpdateTimeout, setTaxUpdateTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Debounce showing connection state to prevent UI flickering
   useEffect(() => {
@@ -216,12 +217,15 @@ const Session = () => {
       window.removeEventListener('pageshow', handleAppStateChange);
 
       clearTimeout(visibilityChangeTimeout);
+      if (taxUpdateTimeout) {
+        clearTimeout(taxUpdateTimeout);
+      }
       if (websocket) {
         clearTimeout(websocket.reconnectTimeout);
         websocket.close();
       }
     };
-  }, [connectWebSocket]);
+  }, [connectWebSocket, taxUpdateTimeout]);
 
   const addOrder = () => {
     if (!newItem.trim()) {
@@ -324,6 +328,21 @@ const Session = () => {
       });
     }
     setIsEditingTax(false);
+  };
+
+  const handleTaxBlur = () => {
+    // Clear any existing timeout
+    if (taxUpdateTimeout) {
+      clearTimeout(taxUpdateTimeout);
+    }
+    
+    // Set a 300ms delay before submitting the tax update
+    const timeoutId = setTimeout(() => {
+      submitTaxUpdate();
+      setTaxUpdateTimeout(null);
+    }, 300);
+    
+    setTaxUpdateTimeout(timeoutId);
   };
 
   const removeOrder = (orderId: string) => {
@@ -555,7 +574,7 @@ const Session = () => {
                   value={taxInput}
                   onChange={(e) => setTaxInput(e.target.value)}
                   onFocus={() => setIsEditingTax(true)}
-                  onBlur={submitTaxUpdate}
+                  onBlur={handleTaxBlur}
                   onKeyDown={(e) => { if (e.key === 'Enter') submitTaxUpdate(); }}
                   min={0}
                   max={50}
