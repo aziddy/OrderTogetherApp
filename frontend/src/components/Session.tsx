@@ -63,11 +63,33 @@ const Session = () => {
   const [price, setPrice] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [isConnecting, setIsConnecting] = useState(true);
+  const [showConnecting, setShowConnecting] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
   const toast = useToast();
   const [isInBackground, setIsInBackground] = useState(false);
+
+  // Debounce showing connection state to prevent UI flickering
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (isConnecting) {
+      // Delay showing "connecting" message by 500ms
+      timeoutId = setTimeout(() => {
+        setShowConnecting(true);
+      }, 500);
+    } else {
+      // Immediately hide connecting message when connected
+      setShowConnecting(false);
+    }
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isConnecting]);
 
   const connectWebSocket = useCallback(() => {
     if (sessionExpired) return null;
@@ -264,7 +286,7 @@ const Session = () => {
       setNewItem('');
       setQuantity('1');
       setPrice('');
-      setNotes('');
+      // Keep notes field value for convenience
     } else {
       toast({
         title: 'Connection error',
@@ -366,7 +388,7 @@ const Session = () => {
               Show QR Code
             </Button>
           </HStack>
-          {isConnecting && !sessionExpired && (
+          {showConnecting && !sessionExpired && (
             <Text color="orange.500" mt={2}>
               Connecting to session...
             </Text>
