@@ -132,3 +132,4 @@ certs/*.pem
 certs/*.key
 *.pem
 *.key
+.DS_Store
