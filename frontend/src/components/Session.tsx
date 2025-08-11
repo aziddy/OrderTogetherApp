@@ -26,8 +26,10 @@ import {
   ModalCloseButton,
   useDisclosure,
   Badge,
-  Grid,
+  SimpleGrid,
   Flex,
+  InputGroup,
+  InputRightAddon,
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 import Logo from './Logo';
@@ -53,6 +55,9 @@ const Session = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [ws, setWs] = useState<ExtendedWebSocket | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [taxPercent, setTaxPercent] = useState<number>(13);
+  const [taxInput, setTaxInput] = useState<string>('13');
+  const [isEditingTax, setIsEditingTax] = useState<boolean>(false);
   const [newItem, setNewItem] = useState('');
   const [quantity, setQuantity] = useState<string>('1');
   const [price, setPrice] = useState<string>('');
@@ -66,14 +71,14 @@ const Session = () => {
 
   const connectWebSocket = useCallback(() => {
     if (sessionExpired) return null;
-    
+
     setIsConnecting(true);
     const websocket = new WebSocket(BACKEND_WS_URL) as ExtendedWebSocket;
 
     websocket.onopen = () => {
       console.log('WebSocket connected');
       setIsConnecting(false);
-      
+
       websocket.send(JSON.stringify({
         type: 'join',
         sessionId,
@@ -86,6 +91,12 @@ const Session = () => {
         switch (data.type) {
           case 'orders':
             setOrders(data.orders);
+            if (typeof data.taxPercent === 'number') {
+              setTaxPercent(data.taxPercent);
+              if (!isEditingTax) {
+                setTaxInput(String(data.taxPercent));
+              }
+            }
             break;
           case 'session_expired':
             setSessionExpired(true);
@@ -116,7 +127,7 @@ const Session = () => {
     websocket.onclose = (event) => {
       console.log('WebSocket closed:', event.code, event.reason);
       setIsConnecting(true);
-      
+
       if (!isInBackground) {
         const backoffDelay = Math.min(1000 * Math.pow(2, websocket.attempts || 0), 30000);
         websocket.reconnectTimeout = setTimeout(() => {
@@ -136,7 +147,7 @@ const Session = () => {
     websocket.attempts = 0;
     setWs(websocket);
     return websocket;
-  }, [sessionId, navigate, toast, sessionExpired, isInBackground]);
+  }, [sessionId, navigate, toast, sessionExpired, isInBackground, isEditingTax]);
 
   useEffect(() => {
     let websocket: ExtendedWebSocket | null = null;
@@ -154,7 +165,7 @@ const Session = () => {
       } else {
         setIsInBackground(false);
         clearTimeout(visibilityChangeTimeout);
-        
+
         if (!websocket || websocket.readyState !== WebSocket.OPEN) {
           websocket = connectWebSocket();
         }
@@ -181,7 +192,7 @@ const Session = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleAppStateChange);
       window.removeEventListener('pageshow', handleAppStateChange);
-      
+
       clearTimeout(visibilityChangeTimeout);
       if (websocket) {
         clearTimeout(websocket.reconnectTimeout);
@@ -264,6 +275,35 @@ const Session = () => {
     }
   };
 
+  const submitTaxUpdate = () => {
+    const proposed = parseFloat(taxInput);
+    if (isNaN(proposed) || proposed < 0 || proposed > 50) {
+      toast({
+        title: 'Invalid tax',
+        description: 'Enter a tax percentage between 0 and 50',
+        status: 'warning',
+        duration: 3000,
+      });
+      setTaxInput(String(taxPercent));
+      setIsEditingTax(false);
+      return;
+    }
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'set_tax',
+        taxPercent: Math.round(proposed * 100) / 100,
+      }));
+    } else {
+      toast({
+        title: 'Connection error',
+        description: 'Please wait for connection to be established',
+        status: 'error',
+        duration: 3000,
+      });
+    }
+    setIsEditingTax(false);
+  };
+
   const removeOrder = (orderId: string) => {
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
@@ -291,8 +331,8 @@ const Session = () => {
   };
 
   return (
-    <Container 
-      maxW={["100%", "100%", "container.md"]} 
+    <Container
+      maxW={["100%", "100%", "container.md"]}
       px={[2, 2, 4]}
     >
       <VStack spacing={6} align="stretch">
@@ -395,9 +435,9 @@ const Session = () => {
               }}
               isDisabled={isConnecting || sessionExpired}
             />
-            <Button 
-              colorScheme="teal" 
-              width="full" 
+            <Button
+              colorScheme="teal"
+              width="full"
               onClick={addOrder}
               isDisabled={isConnecting || sessionExpired}
             >
@@ -408,7 +448,7 @@ const Session = () => {
 
         <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
           <Heading as="h2" size="md" mb={4}>
-            Current Orders
+            Current Order Items
           </Heading>
           <List spacing={3}>
             {orders.map((order) => (
@@ -436,8 +476,8 @@ const Session = () => {
                     )}
                   </Flex>
                   {order.notes && (
-                    <Text 
-                      fontSize="sm" 
+                    <Text
+                      fontSize="sm"
                       color="gray.600"
                       width="100%"
                       whiteSpace="pre-wrap"
@@ -469,12 +509,12 @@ const Session = () => {
           </List>
           <Box mt={4} pt={4} borderTop="1px" borderColor="gray.200">
             <HStack justify={["center", "center", "flex-end"]} spacing={2} width="100%">
-              <Badge 
-                colorScheme="green" 
+              <Badge
+                colorScheme="green"
                 fontSize={["1.3em", "1.5em", "1.8em"]}
-                px={4} 
-                py={1} 
-                borderRadius="md" 
+                px={4}
+                py={1}
+                borderRadius="md"
                 fontWeight="bold"
                 width={["100%", "100%", "auto"]}
                 textAlign="center"
@@ -485,18 +525,51 @@ const Session = () => {
                   .toFixed(2)}
               </Badge>
             </HStack>
-            <Grid 
-              mt={2} 
-              templateColumns={["repeat(2, 1fr)", "repeat(2, 1fr)", "repeat(4, 1fr)"]} 
-              gap={4}
+            <HStack justify={["center", "center", "flex-end"]} spacing={3} width="100%" mt={2}>
+              <Text fontSize={["1em", "1.1em", "1.2em"]} color="gray.700">Tax</Text>
+              <InputGroup maxW={["40%", "40%", "20%"]} size="sm">
+                <Input
+                  type="number"
+                  value={taxInput}
+                  onChange={(e) => setTaxInput(e.target.value)}
+                  onFocus={() => setIsEditingTax(true)}
+                  onBlur={submitTaxUpdate}
+                  onKeyDown={(e) => { if (e.key === 'Enter') submitTaxUpdate(); }}
+                  min={0}
+                  max={50}
+                  step={0.1}
+                  isDisabled={isConnecting || sessionExpired}
+                />
+                <InputRightAddon>%</InputRightAddon>
+              </InputGroup>
+              {(() => {
+                const subtotal = orders
+                  .filter(order => order.price !== undefined)
+                  .reduce((sum, order) => sum + (order.price || 0) * order.quantity, 0);
+                const displayTaxPercent = isEditingTax && !isNaN(parseFloat(taxInput)) ? parseFloat(taxInput) : taxPercent;
+                const taxAmount = subtotal * (displayTaxPercent / 100);
+                return (
+                  <Badge colorScheme="purple" fontSize={["1em", "1.1em", "1.2em"]} px={3} py={1} borderRadius="md">
+                    ${taxAmount.toFixed(2)}
+                  </Badge>
+                );
+              })()}
+            </HStack>
+            <SimpleGrid
+              mt={2}
+              minChildWidth="180px"
+              spacing={4}
             >
               {[13, 15, 18, 20].map(tipPercent => {
                 const subtotal = orders
                   .filter(order => order.price !== undefined)
                   .reduce((sum, order) => sum + (order.price || 0) * order.quantity, 0);
-                const tipAmount = subtotal * (tipPercent / 100);
-                const total = subtotal + tipAmount;
-                
+                const displayTaxPercent = isEditingTax && !isNaN(parseFloat(taxInput)) ? parseFloat(taxInput) : taxPercent;
+                const taxAmount = subtotal * (displayTaxPercent / 100);
+                const amountBeforeTip = subtotal + taxAmount;
+                const tipAmount = amountBeforeTip * (tipPercent / 100);
+                const total = amountBeforeTip + tipAmount;
+
                 return (
                   <Badge key={tipPercent} colorScheme="blue" p={3} borderRadius="md" width="100%">
                     <VStack spacing={1} align="center">
@@ -504,13 +577,13 @@ const Session = () => {
                       <Text fontSize={["1em", "1.1em", "1.2em"]}>Tip:</Text>
                       <Text fontSize={["0.9em", "1em", "1.1em"]} fontStyle="italic">${tipAmount.toFixed(2)}</Text>
                       <Box w="100%" h="1px" bg="blue.200" my={1} />
-                      <Text fontSize={["1.2em", "1.3em", "1.5em"]}>Total:</Text>
+                      <Text fontSize={["1.2em", "1.3em", "1.5em"]}>Total (incl. tax):</Text>
                       <Text fontSize={["1.4em", "1.5em", "1.7em"]}>${total.toFixed(2)}</Text>
                     </VStack>
                   </Badge>
                 );
               })}
-            </Grid>
+            </SimpleGrid>
           </Box>
         </Box>
       </VStack>

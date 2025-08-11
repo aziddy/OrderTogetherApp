@@ -23,6 +23,8 @@ const SESSION_TIMEOUT = 4 * 60 * 60 * 1000;
 const MAX_NOTES_LENGTH = 30;
 const MAX_ITEM_NAME_LENGTH = 25;
 const MAX_ITEM_PRICE = 50000;
+const DEFAULT_TAX_PERCENT = 13; // default tax percentage per session
+const MAX_TAX_PERCENT = 50; // sanity limit
 
 // Cleanup inactive sessions
 function cleanupSessions() {
@@ -70,7 +72,8 @@ wss.on('connection', (ws) => {
                     sessions.set(sessionId, {
                         orders: [],
                         clients: new Set(),
-                        createdAt: Date.now()
+                        createdAt: Date.now(),
+                        taxPercent: DEFAULT_TAX_PERCENT,
                     });
                 }
                 sessions.get(sessionId).clients.add(ws);
@@ -78,7 +81,8 @@ wss.on('connection', (ws) => {
                 // Send current orders to new client
                 ws.send(JSON.stringify({
                     type: 'orders',
-                    orders: sessions.get(sessionId).orders
+                    orders: sessions.get(sessionId).orders,
+                    taxPercent: sessions.get(sessionId).taxPercent,
                 }));
                 break;
 
@@ -130,7 +134,8 @@ wss.on('connection', (ws) => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
                                 type: 'orders',
-                                orders: session.orders
+                                orders: session.orders,
+                                taxPercent: session.taxPercent,
                             }));
                         }
                     });
@@ -146,7 +151,35 @@ wss.on('connection', (ws) => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
                                 type: 'orders',
-                                orders: session.orders
+                                orders: session.orders,
+                                taxPercent: session.taxPercent,
+                            }));
+                        }
+                    });
+                }
+                break;
+
+            case 'set_tax':
+                if (sessionId && sessions.has(sessionId)) {
+                    const session = sessions.get(sessionId);
+                    const proposed = parseFloat(data.taxPercent);
+                    if (isNaN(proposed) || proposed < 0 || proposed > MAX_TAX_PERCENT) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: `Invalid tax percent. Must be between 0 and ${MAX_TAX_PERCENT}`
+                        }));
+                        return;
+                    }
+                    // Round to 2 decimals
+                    session.taxPercent = Math.round(proposed * 100) / 100;
+
+                    // Broadcast updated tax (with current orders) to all clients
+                    session.clients.forEach((client) => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                type: 'orders',
+                                orders: session.orders,
+                                taxPercent: session.taxPercent,
                             }));
                         }
                     });
@@ -176,7 +209,8 @@ app.post('/api/sessions', (req, res) => {
     sessions.set(sessionId, {
         orders: [],
         clients: new Set(),
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        taxPercent: DEFAULT_TAX_PERCENT,
     });
     res.json({ sessionId });
 });
