@@ -30,8 +30,14 @@ import {
   Flex,
   InputGroup,
   InputRightAddon,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from '@chakra-ui/react';
-import { DeleteIcon } from '@chakra-ui/icons';
+import { DeleteIcon, CheckIcon } from '@chakra-ui/icons';
 import Logo from './Logo';
 
 // Add custom WebSocket interface
@@ -47,6 +53,7 @@ interface Order {
   price?: number;
   notes: string;
   timestamp: string;
+  isOrdered?: boolean;
 }
 
 const BACKEND_WS_URL = process.env.REACT_APP_BACKEND_WS_URL || 'ws://localhost/not_set_correctly';
@@ -66,6 +73,13 @@ const Session = () => {
   const [showConnecting, setShowConnecting] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isDeleteDialogOpen,
+    onOpen: onDeleteDialogOpen,
+    onClose: onDeleteDialogClose
+  } = useDisclosure();
+  const [orderToDelete, setOrderToDelete] = useState<{ id: string; name: string } | null>(null);
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const toast = useToast();
   const [isInBackground, setIsInBackground] = useState(false);
@@ -345,12 +359,47 @@ const Session = () => {
     setTaxUpdateTimeout(timeoutId);
   };
 
-  const removeOrder = (orderId: string) => {
-    if (ws?.readyState === WebSocket.OPEN) {
+  const handleDeleteClick = (orderId: string, orderName: string) => {
+    setOrderToDelete({ id: orderId, name: orderName });
+    onDeleteDialogOpen();
+  };
+
+  const confirmDelete = () => {
+    if (orderToDelete && ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         type: 'remove_order',
+        orderId: orderToDelete.id,
+      }));
+    } else if (!ws || ws.readyState !== WebSocket.OPEN) {
+      toast({
+        title: 'Connection error',
+        description: 'Please wait for connection to be established',
+        status: 'error',
+        duration: 3000,
+      });
+    }
+    setOrderToDelete(null);
+    onDeleteDialogClose();
+  };
+
+  const toggleOrderStatus = (orderId: string) => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      // Find the order to get its details for the toast
+      const order = orders.find(o => o.id === orderId);
+      const isCurrentlyOrdered = order?.isOrdered || false;
+
+      ws.send(JSON.stringify({
+        type: 'toggle_order_status',
         orderId,
       }));
+
+      // Show toast notification
+      toast({
+        title: isCurrentlyOrdered ? 'Item unmarked' : 'Item marked as ordered',
+        description: order?.item,
+        status: 'success',
+        duration: 2000,
+      });
     } else {
       toast({
         title: 'Connection error',
@@ -437,6 +486,34 @@ const Session = () => {
           </ModalContent>
         </Modal>
 
+        <AlertDialog
+          isOpen={isDeleteDialogOpen}
+          leastDestructiveRef={cancelRef}
+          onClose={onDeleteDialogClose}
+          isCentered
+        >
+          <AlertDialogOverlay>
+            <AlertDialogContent>
+              <AlertDialogHeader fontSize="lg" fontWeight="bold">
+                Delete Item
+              </AlertDialogHeader>
+
+              <AlertDialogBody>
+                Are you sure you want to delete "{orderToDelete?.name}"? This action cannot be undone.
+              </AlertDialogBody>
+
+              <AlertDialogFooter>
+                <Button ref={cancelRef} onClick={onDeleteDialogClose}>
+                  Cancel
+                </Button>
+                <Button colorScheme="red" onClick={confirmDelete} ml={3}>
+                  Delete
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialogOverlay>
+        </AlertDialog>
+
         <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
           <VStack spacing={4}>
             <Input
@@ -496,22 +573,23 @@ const Session = () => {
               <ListItem
                 key={order.id}
                 p={3}
-                bg="gray.50"
+                bg={order.isOrdered ? "gray.100" : "gray.50"}
                 borderRadius="md"
                 display="flex"
                 justifyContent="space-between"
                 alignItems="flex-start"
+                opacity={order.isOrdered ? 0.6 : 1}
               >
                 <VStack align="start" spacing={1} flex="1" minWidth="0">
                   <Flex gap={2} flexWrap="wrap" width="100%">
-                    <Badge colorScheme="orange" fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
+                    <Badge colorScheme={order.isOrdered ? "gray" : "orange"} fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
                       {order.quantity}x
                     </Badge>
-                    <Badge colorScheme="blue" fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
+                    <Badge colorScheme={order.isOrdered ? "gray" : "blue"} fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
                       {order.item}
                     </Badge>
                     {order.price !== undefined && (
-                      <Badge colorScheme="green" fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
+                      <Badge colorScheme={order.isOrdered ? "gray" : "green"} fontSize="0.9em" px={2} borderRadius="md" flexShrink={0}>
                         ${order.price.toFixed(2)}
                       </Badge>
                     )}
@@ -529,17 +607,26 @@ const Session = () => {
                     </Text>
                   )}
                 </VStack>
-                <IconButton
-                  aria-label="Remove order"
-                  icon={<DeleteIcon />}
-                  size="sm"
-                  colorScheme="red"
-                  variant="ghost"
-                  onClick={() => removeOrder(order.id)}
-                  isDisabled={isConnecting || sessionExpired}
-                  ml={2}
-                  flexShrink={0}
-                />
+                <HStack spacing={1} ml={2} flexShrink={0}>
+                  <IconButton
+                    aria-label={order.isOrdered ? "Mark as not ordered" : "Mark as ordered"}
+                    icon={<CheckIcon />}
+                    size={["md", "md", "sm"]}
+                    colorScheme={order.isOrdered ? "green" : "gray"}
+                    variant={order.isOrdered ? "solid" : "ghost"}
+                    onClick={() => toggleOrderStatus(order.id)}
+                    isDisabled={isConnecting || sessionExpired}
+                  />
+                  <IconButton
+                    aria-label="Remove order"
+                    icon={<DeleteIcon />}
+                    size={["md", "md", "sm"]}
+                    colorScheme="red"
+                    variant="ghost"
+                    onClick={() => handleDeleteClick(order.id, order.item)}
+                    isDisabled={isConnecting || sessionExpired}
+                  />
+                </HStack>
               </ListItem>
             ))}
             {orders.length === 0 && (

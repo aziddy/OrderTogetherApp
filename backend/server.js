@@ -125,6 +125,7 @@ wss.on('connection', (ws) => {
                     const order = {
                         id: shortid.generate(),
                         ...data.order,
+                        isOrdered: false,
                         timestamp: new Date().toISOString()
                     };
                     session.orders.push(order);
@@ -146,7 +147,7 @@ wss.on('connection', (ws) => {
                 if (sessionId && sessions.has(sessionId)) {
                     const session = sessions.get(sessionId);
                     session.orders = session.orders.filter(order => order.id !== data.orderId);
-                    
+
                     session.clients.forEach((client) => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
@@ -156,6 +157,35 @@ wss.on('connection', (ws) => {
                             }));
                         }
                     });
+                }
+                break;
+
+            case 'toggle_order_status':
+                if (sessionId && sessions.has(sessionId)) {
+                    const session = sessions.get(sessionId);
+                    const orderIndex = session.orders.findIndex(order => order.id === data.orderId);
+
+                    if (orderIndex !== -1) {
+                        // Toggle the isOrdered status
+                        const currentStatus = session.orders[orderIndex].isOrdered || false;
+                        session.orders[orderIndex].isOrdered = !currentStatus;
+
+                        // Broadcast updated orders to all clients
+                        session.clients.forEach((client) => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                client.send(JSON.stringify({
+                                    type: 'orders',
+                                    orders: session.orders,
+                                    taxPercent: session.taxPercent,
+                                }));
+                            }
+                        });
+                    } else {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: 'Order not found'
+                        }));
+                    }
                 }
                 break;
 
