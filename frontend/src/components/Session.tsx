@@ -566,7 +566,7 @@ const Session = () => {
 
         <Box bg="white" p={6} borderRadius="lg" boxShadow="md">
           <Heading as="h2" size="md" mb={4}>
-            Current Order Items
+            Current Order Items - ({orders.filter(o => o.isOrdered).length}/{orders.length}) Items Ordered
           </Heading>
           <List spacing={3}>
             {orders.map((order) => (
