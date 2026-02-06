@@ -108,6 +108,15 @@ wss.on('connection', (ws) => {
                         return;
                     }
 
+                    // Validate name length
+                    if (data.order.name && data.order.name.trim().length > MAX_NOTES_LENGTH) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: `Name must be ${MAX_NOTES_LENGTH} characters or less`
+                        }));
+                        return;
+                    }
+
                     // Validate price if provided
                     if (data.order.price !== undefined) {
                         const price = parseFloat(data.order.price);

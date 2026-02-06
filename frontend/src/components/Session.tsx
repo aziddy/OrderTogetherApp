@@ -51,12 +51,37 @@ interface Order {
   item: string;
   quantity: number;
   price?: number;
+  name: string;
   notes: string;
   timestamp: string;
   isOrdered?: boolean;
 }
 
 const BACKEND_WS_URL = process.env.REACT_APP_BACKEND_WS_URL || 'ws://localhost/not_set_correctly';
+
+const STORAGE_KEY = 'orderTogetherUserName';
+const STORAGE_EXPIRY_DAYS = 1;
+
+const loadNameFromStorage = (): string => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return '';
+
+    const { value, expiry } = JSON.parse(stored);
+    if (Date.now() > expiry) {
+      localStorage.removeItem(STORAGE_KEY);
+      return '';
+    }
+    return value;
+  } catch {
+    return '';
+  }
+};
+
+const saveNameToStorage = (name: string) => {
+  const expiry = Date.now() + (STORAGE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ value: name, expiry }));
+};
 
 const Session = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -68,6 +93,7 @@ const Session = () => {
   const [newItem, setNewItem] = useState('');
   const [quantity, setQuantity] = useState<string>('1');
   const [price, setPrice] = useState<string>('');
+  const [userName, setUserName] = useState<string>(() => loadNameFromStorage());
   const [notes, setNotes] = useState('');
   const [isConnecting, setIsConnecting] = useState(true);
   const [showConnecting, setShowConnecting] = useState(false);
@@ -297,6 +323,7 @@ const Session = () => {
           item: newItem.trim(),
           quantity: parsedQuantity,
           price: parsedPrice,
+          name: userName.trim(),
           notes: notes.trim(),
         },
       }));
@@ -304,7 +331,7 @@ const Session = () => {
       setNewItem('');
       setQuantity('1');
       setPrice('');
-      // Keep notes field value for convenience
+      // Keep userName and notes fields populated for convenience
     } else {
       toast({
         title: 'Connection error',
@@ -380,6 +407,11 @@ const Session = () => {
     }
     setOrderToDelete(null);
     onDeleteDialogClose();
+  };
+
+  const handleNameChange = (newName: string) => {
+    setUserName(newName);
+    saveNameToStorage(newName);
   };
 
   const toggleOrderStatus = (orderId: string) => {
@@ -542,17 +574,32 @@ const Session = () => {
                 isDisabled={isConnecting || sessionExpired}
               />
             </HStack>
-            <Input
-              placeholder="Notes (optional)"
-              value={notes}
-              onChange={(e) => {
-                const trimmedValue = e.target.value.trim();
-                if (trimmedValue.length <= 100) {
-                  setNotes(e.target.value);
-                }
-              }}
-              isDisabled={isConnecting || sessionExpired}
-            />
+            <HStack spacing={2} width="100%">
+              <Input
+                placeholder="Name (optional)"
+                value={userName}
+                onChange={(e) => {
+                  const trimmedValue = e.target.value.trim();
+                  if (trimmedValue.length <= 30) {
+                    handleNameChange(e.target.value);
+                  }
+                }}
+                isDisabled={isConnecting || sessionExpired}
+                flex={1}
+              />
+              <Input
+                placeholder="Notes (optional)"
+                value={notes}
+                onChange={(e) => {
+                  const trimmedValue = e.target.value.trim();
+                  if (trimmedValue.length <= 100) {
+                    setNotes(e.target.value);
+                  }
+                }}
+                isDisabled={isConnecting || sessionExpired}
+                flex={1}
+              />
+            </HStack>
             <Button
               colorScheme="teal"
               width="full"
@@ -594,6 +641,11 @@ const Session = () => {
                       </Badge>
                     )}
                   </Flex>
+                  {order.name && (
+                    <Text fontSize="xs" color="gray.500" fontWeight="semibold">
+                      {order.name}
+                    </Text>
+                  )}
                   {order.notes && (
                     <Text
                       fontSize="sm"
