@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -89,7 +89,7 @@ const Session = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [taxPercent, setTaxPercent] = useState<number>(13);
   const [taxInput, setTaxInput] = useState<string>('13');
-  const [isEditingTax, setIsEditingTax] = useState<boolean>(false);
+  const isEditingTaxRef = useRef<boolean>(false);
   const [newItem, setNewItem] = useState('');
   const [quantity, setQuantity] = useState<string>('1');
   const [price, setPrice] = useState<string>('');
@@ -109,7 +109,7 @@ const Session = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [isInBackground, setIsInBackground] = useState(false);
-  const [taxUpdateTimeout, setTaxUpdateTimeout] = useState<NodeJS.Timeout | null>(null);
+  const taxUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debounce showing connection state to prevent UI flickering
   useEffect(() => {
@@ -156,7 +156,7 @@ const Session = () => {
             setOrders(data.orders);
             if (typeof data.taxPercent === 'number') {
               setTaxPercent(data.taxPercent);
-              if (!isEditingTax) {
+              if (!isEditingTaxRef.current) {
                 setTaxInput(String(data.taxPercent));
               }
             }
@@ -210,7 +210,7 @@ const Session = () => {
     websocket.attempts = 0;
     setWs(websocket);
     return websocket;
-  }, [sessionId, navigate, toast, sessionExpired, isInBackground, isEditingTax]);
+  }, [sessionId, navigate, toast, sessionExpired, isInBackground]);
 
   useEffect(() => {
     let websocket: ExtendedWebSocket | null = null;
@@ -257,15 +257,15 @@ const Session = () => {
       window.removeEventListener('pageshow', handleAppStateChange);
 
       clearTimeout(visibilityChangeTimeout);
-      if (taxUpdateTimeout) {
-        clearTimeout(taxUpdateTimeout);
+      if (taxUpdateTimeoutRef.current) {
+        clearTimeout(taxUpdateTimeoutRef.current);
       }
       if (websocket) {
         clearTimeout(websocket.reconnectTimeout);
         websocket.close();
       }
     };
-  }, [connectWebSocket, taxUpdateTimeout]);
+  }, [connectWebSocket]);
 
   const addOrder = () => {
     if (!newItem.trim()) {
@@ -352,7 +352,7 @@ const Session = () => {
         duration: 3000,
       });
       setTaxInput(String(taxPercent));
-      setIsEditingTax(false);
+      isEditingTaxRef.current = false;
       return;
     }
     if (ws?.readyState === WebSocket.OPEN) {
@@ -368,22 +368,22 @@ const Session = () => {
         duration: 3000,
       });
     }
-    setIsEditingTax(false);
+    isEditingTaxRef.current = false;
   };
 
   const handleTaxBlur = () => {
     // Clear any existing timeout
-    if (taxUpdateTimeout) {
-      clearTimeout(taxUpdateTimeout);
+    if (taxUpdateTimeoutRef.current) {
+      clearTimeout(taxUpdateTimeoutRef.current);
     }
-    
+
     // Set a 300ms delay before submitting the tax update
     const timeoutId = setTimeout(() => {
       submitTaxUpdate();
-      setTaxUpdateTimeout(null);
+      taxUpdateTimeoutRef.current = null;
     }, 300);
-    
-    setTaxUpdateTimeout(timeoutId);
+
+    taxUpdateTimeoutRef.current = timeoutId;
   };
 
   const handleDeleteClick = (orderId: string, orderName: string) => {
@@ -712,7 +712,7 @@ const Session = () => {
                   type="number"
                   value={taxInput}
                   onChange={(e) => setTaxInput(e.target.value)}
-                  onFocus={() => setIsEditingTax(true)}
+                  onFocus={() => isEditingTaxRef.current = true}
                   onBlur={handleTaxBlur}
                   onKeyDown={(e) => { if (e.key === 'Enter') submitTaxUpdate(); }}
                   min={0}
@@ -726,7 +726,7 @@ const Session = () => {
                 const subtotal = orders
                   .filter(order => order.price !== undefined)
                   .reduce((sum, order) => sum + (order.price || 0) * order.quantity, 0);
-                const displayTaxPercent = isEditingTax && !isNaN(parseFloat(taxInput)) ? parseFloat(taxInput) : taxPercent;
+                const displayTaxPercent = isEditingTaxRef.current && !isNaN(parseFloat(taxInput)) ? parseFloat(taxInput) : taxPercent;
                 const taxAmount = subtotal * (displayTaxPercent / 100);
                 return (
                   <Badge colorScheme="purple" fontSize={["1em", "1.1em", "1.2em"]} px={3} py={1} borderRadius="md">
@@ -744,7 +744,7 @@ const Session = () => {
                 const subtotal = orders
                   .filter(order => order.price !== undefined)
                   .reduce((sum, order) => sum + (order.price || 0) * order.quantity, 0);
-                const displayTaxPercent = isEditingTax && !isNaN(parseFloat(taxInput)) ? parseFloat(taxInput) : taxPercent;
+                const displayTaxPercent = isEditingTaxRef.current && !isNaN(parseFloat(taxInput)) ? parseFloat(taxInput) : taxPercent;
                 const taxAmount = subtotal * (displayTaxPercent / 100);
                 const amountBeforeTip = subtotal + taxAmount;
                 const tipAmount = amountBeforeTip * (tipPercent / 100);
