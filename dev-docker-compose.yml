@@ -24,8 +24,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - REACT_APP_BACKEND_URL=https://localhost:8150
-        - REACT_APP_BACKEND_WS_URL=wss://localhost:8150/ws
+        - VITE_BACKEND_URL=https://localhost:8150
+        - VITE_BACKEND_WS_URL=wss://localhost:8150/ws
         - NODE_ENV=local
     expose:
       - "3000"

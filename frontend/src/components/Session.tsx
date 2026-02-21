@@ -43,7 +43,7 @@ import Logo from './Logo';
 // Add custom WebSocket interface
 interface ExtendedWebSocket extends WebSocket {
   attempts?: number;
-  reconnectTimeout?: NodeJS.Timeout;
+  reconnectTimeout?: ReturnType<typeof setTimeout>;
 }
 
 interface Order {
@@ -57,7 +57,7 @@ interface Order {
   isOrdered?: boolean;
 }
 
-const BACKEND_WS_URL = process.env.REACT_APP_BACKEND_WS_URL || 'ws://localhost/not_set_correctly';
+const BACKEND_WS_URL = import.meta.env.VITE_BACKEND_WS_URL || 'ws://localhost/not_set_correctly';
 
 const STORAGE_KEY = 'orderTogetherUserName';
 const STORAGE_EXPIRY_DAYS = 1;
@@ -109,11 +109,11 @@ const Session = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [isInBackground, setIsInBackground] = useState(false);
-  const taxUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const taxUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounce showing connection state to prevent UI flickering
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
     
     if (isConnecting) {
       // Delay showing "connecting" message by 500ms
@@ -214,7 +214,7 @@ const Session = () => {
 
   useEffect(() => {
     let websocket: ExtendedWebSocket | null = null;
-    let visibilityChangeTimeout: NodeJS.Timeout;
+    let visibilityChangeTimeout: ReturnType<typeof setTimeout>;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {

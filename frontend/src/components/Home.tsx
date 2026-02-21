@@ -11,7 +11,7 @@ import {
   Container,
 } from '@chakra-ui/react';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost/not_set_correctly';
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost/not_set_correctly';
 
 const Home = () => {
   const [sessionCode, setSessionCode] = useState('');

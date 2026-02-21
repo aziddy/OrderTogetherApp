@@ -22,20 +22,22 @@ FROM dependencies AS builder
 
 WORKDIR /app
 
-# Build arguments for React app
-ARG REACT_APP_BACKEND_URL
-ARG REACT_APP_BACKEND_WS_URL
+# Build arguments for Vite app
+ARG VITE_BACKEND_URL
+ARG VITE_BACKEND_WS_URL
 ARG NODE_ENV
 
 # Set environment variables for build
-ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
-ENV REACT_APP_BACKEND_WS_URL=$REACT_APP_BACKEND_WS_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ENV VITE_BACKEND_WS_URL=$VITE_BACKEND_WS_URL
 ENV NODE_ENV=$NODE_ENV
 
 # Copy source code (selective copying for better caching)
 COPY public/ ./public/
 COPY src/ ./src/
 COPY tsconfig.json ./
+COPY index.html ./
+COPY vite.config.ts ./
 
 # Build the React application
 RUN npm run build
@@ -52,7 +54,7 @@ WORKDIR /app
 RUN npm install -g serve
 
 # Copy ONLY the build output from builder stage
-# This excludes all 519 MB of node_modules and source code
+# This excludes all node_modules and source code
 COPY --from=builder /app/build ./build
 
 # Expose port 3000 (default serve port)
