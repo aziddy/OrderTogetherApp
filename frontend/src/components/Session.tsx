@@ -455,7 +455,7 @@ const Session = () => {
   return (
     <Container
       maxW={["100%", "100%", "container.md"]}
-      px={[2, 2, 4]}
+      px={[1, 2, 4]}
     >
       <VStack spacing={6} align="stretch">
         {sessionExpired && (
@@ -620,7 +620,7 @@ const Session = () => {
               <ListItem
                 key={order.id}
                 p={3}
-                bg={order.isOrdered ? "gray.100" : "gray.50"}
+                bg={order.isOrdered ? "green.50" : "gray.50"}
                 borderRadius="md"
                 display="flex"
                 justifyContent="space-between"

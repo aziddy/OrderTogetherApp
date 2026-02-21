@@ -11,3 +11,16 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+@media (max-width: 480px) {
+  .chakra-toast .chakra-alert {
+    font-size: 0.85rem;
+    padding: 8px 12px;
+  }
+  .chakra-toast .chakra-alert__title {
+    font-size: 0.85rem;
+  }
+  .chakra-toast .chakra-alert__desc {
+    font-size: 0.8rem;
+  }
+}
